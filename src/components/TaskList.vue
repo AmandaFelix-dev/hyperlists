@@ -1,187 +1,267 @@
 <template>
-  <section class="task-list" v-if="tasks.length">
-    <div v-for="task in tasks" :key="task.id" class="task-card">
-      <div class="left">
-        <div class="meta">
-          <strong v-if="!isEditing(task.id)">{{ task.title }}</strong>
-          <input v-else v-model="edited[task.id].title" />
-          <small class="date">{{ formatDate(task.createdAt) }}</small>
-        </div>
-        <div class="desc">
-          <p v-if="!isEditing(task.id)">
-            {{ task.description || "— sem descrição —" }}
-          </p>
-          <textarea v-else v-model="edited[task.id].description"></textarea>
-        </div>
-        <div class="spotify" v-if="task.spotify && !isEditing(task.id)">
-          <a :href="task.spotify" target="_blank" rel="noreferrer"
-            >Abrir link do Spotify</a
-          >
-          <div v-if="embedSrc(task.spotify)" class="embed">
-            <iframe
-              :src="embedSrc(task.spotify)"
-              width="100%"
-              height="80"
-              frameborder="0"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            ></iframe>
-          </div>
-        </div>
-        <div class="spotify-edit" v-else-if="isEditing(task.id)">
-          <input
-            v-model="edited[task.id].spotify"
-            placeholder="Link do Spotify (opcional)"
-          />
-        </div>
+  <div class="task-list">
+    <!-- Cabeçalho com Busca -->
+    <div class="task-list__header">
+      <div class="task-list__search">
+        <input v-model="localSearchText" type="text" placeholder="🔍 Buscar tarefas..." class="task-list__search-input"
+          @input="$emit('update:searchText', localSearchText)" />
+      </div>
+      <button class="task-list__add-btn" @click="$emit('new-task')">
+        Nova Tarefa +
+      </button>
+    </div>
+
+    <!-- Seção de Tarefas em Andamento -->
+    <section v-if="selectedStatus === 'todas' || selectedStatus === 'pendentes'" class="task-list__section">
+      <div class="task-list__section-header">
+        <h2 class="task-list__section-title">⏳ Em Andamento</h2>
+        <span class="task-list__section-count">{{ pendingTasks.length }}</span>
       </div>
 
-      <div class="right">
-        <div v-if="!isEditing(task.id)">
-          <button class="secondary" @click="startEdit(task)">Editar</button>
-        </div>
-        <div v-else>
-          <button class="secondary" @click="saveEdit(task.id)">Salvar</button>
-          <button class="secondary" @click="cancelEdit(task.id)">
-            Cancelar
-          </button>
-        </div>
-        <button class="danger" @click="emitDelete(task.id)">Deletar</button>
+      <div v-if="pendingTasks.length > 0" class="task-list__grid">
+        <task-card v-for="task in pendingTasks" :key="task.id" :task="task" @toggle="$emit('toggle-task', task.id)"
+          @edit="$emit('edit-task', task)" @delete="$emit('delete-task', task.id)" />
       </div>
+      <div v-else class="task-list__empty">
+        <p class="task-list__empty-text">Nenhuma tarefa em andamento</p>
+        <p class="task-list__empty-subtext">Crie uma nova tarefa para começar!</p>
+      </div>
+    </section>
+
+    <!-- Seção de Tarefas Concluídas -->
+    <section v-if="selectedStatus === 'todas' || selectedStatus === 'concluidas'" class="task-list__section">
+      <div class="task-list__section-header">
+        <h2 class="task-list__section-title">✅ Concluídas</h2>
+        <span class="task-list__section-count">{{ completedTasks.length }}</span>
+      </div>
+
+      <div v-if="completedTasks.length > 0" class="task-list__grid">
+        <task-card v-for="task in completedTasks" :key="task.id" :task="task" @toggle="$emit('toggle-task', task.id)"
+          @edit="$emit('edit-task', task)" @delete="$emit('delete-task', task.id)" />
+      </div>
+      <div v-else class="task-list__empty">
+        <p class="task-list__empty-text">Nenhuma tarefa concluída</p>
+        <p class="task-list__empty-subtext">Complete tarefas para vê-las aqui!</p>
+      </div>
+    </section>
+
+    <!-- Mensagem quando não há resultados de busca -->
+    <div v-if="filteredTasks.length === 0 && searchText.trim()" class="task-list__no-results">
+      <p class="task-list__no-results-text">😔 Nenhuma tarefa encontrada</p>
+      <p class="task-list__no-results-subtext">Tente buscar por outro termo</p>
     </div>
-  </section>
-  <p v-else class="empty">Nenhuma tarefa ainda — adicione uma :)</p>
+  </div>
 </template>
 
-<script setup>
-import { reactive, computed } from "vue";
-import { toDisplayString as _toString } from "vue";
-defineProps({ tasks: Array });
-const emit = defineEmits(["update", "delete", "edit"]);
+<script>
+import TaskCard from './TaskCard.vue'
 
-const edited = reactive({});
-const editing = reactive({});
-
-function startEdit(task) {
-  editing[task.id] = true;
-  edited[task.id] = { ...task };
-}
-function isEditing(id) {
-  return !!editing[id];
-}
-function cancelEdit(id) {
-  editing[id] = false;
-  delete edited[id];
-}
-function saveEdit(id) {
-  editing[id] = false;
-  const updated = { ...edited[id] };
-  emit("edit", updated);
-  delete edited[id];
-}
-function emitDelete(id) {
-  if (confirm("Você tem certeza de que quer deletar tarefa? 🧐"))
-    emit("delete", id);
-}
-
-function formatDate(d) {
-  try {
-    return new Date(d).toLocaleString();
-  } catch (e) {
-    return d;
-  }
-}
-
-function embedSrc(url) {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    const hostname = u.hostname.replace("www.", "");
-    if (hostname.includes("spotify.com")) {
-      const parts = u.pathname.split("/").filter(Boolean);
-      if (parts.length >= 2) {
-        const type = parts[0];
-        const id = parts[1];
-        return `https://open.spotify.com/embed/${type}/${id}`;
-      }
+export default {
+  name: 'TaskList',
+  components: {
+    TaskCard,
+  },
+  props: {
+    filteredTasks: {
+      type: Array,
+      default: () => [],
+    },
+    pendingTasks: {
+      type: Array,
+      default: () => [],
+    },
+    completedTasks: {
+      type: Array,
+      default: () => [],
+    },
+    selectedStatus: {
+      type: String,
+      default: 'todas',
+    },
+    searchText: {
+      type: String,
+      default: '',
+    },
+  },
+  emits: ['update:searchText', 'new-task', 'toggle-task', 'edit-task', 'delete-task'],
+  data() {
+    return {
+      localSearchText: this.searchText,
     }
-  } catch (e) {}
-  return null;
+  },
+  watch: {
+    searchText(newVal) {
+      this.localSearchText = newVal
+    },
+  },
 }
 </script>
 
 <style scoped lang="scss">
+@import '../styles/variables';
+@import '../styles/mixins';
+
 .task-list {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  .task-card {
-    display: flex;
-    gap: 12px;
-    padding: 12px;
-    border: 1px solid #eee;
-    border-radius: 8px;
-    align-items: flex-start;
-    .left {
-      flex: 1;
-      .meta {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        strong {
-          font-size: 16px;
-        }
-        .date {
-          color: #888;
-          font-size: 12px;
-        }
-      }
-      .desc {
-        margin-top: 8px;
-        p {
-          margin: 0;
-          color: #333;
-        }
-        textarea {
-          width: 100%;
-          min-height: 60px;
-        }
-      }
-      .spotify {
-        margin-top: 8px;
-        a {
-          display: inline-block;
-          margin-bottom: 8px;
-        }
-        .embed {
-          margin-top: 6px;
-          border-radius: 6px;
-          overflow: hidden;
-        }
-      }
-    }
-    .right {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      button {
-        padding: 6px 10px;
-        border-radius: 6px;
-        cursor: pointer;
-      }
-      .secondary {
-        background: transparent;
-        border: 1px solid #ddd;
-      }
-      .danger {
-        background: #ffdddd;
-        border: 1px solid #ffaaaa;
-      }
-    }
+  gap: $spacing-lg;
+  padding: $spacing-lg;
+  overflow-y: auto;
+
+  @include custom-scrollbar;
+}
+
+.task-list__header {
+  @include flex-between;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  background-color: $color-light-gray;
+  padding: $spacing-md;
+  margin: -$spacing-md - $spacing-md 0;
+  padding: $spacing-lg;
+  z-index: 10;
+}
+
+.task-list__search {
+  flex: 1;
+  min-width: 200px;
+  width: 100%;
+}
+
+.task-list__search-input {
+  @include input-base;
+  width: 100%;
+  font-size: $font-size-base;
+}
+
+.task-list__add-btn {
+  @include button-base;
+  background-color: $color-blue;
+  color: $color-white;
+  padding: $spacing-sm $spacing-lg;
+  font-weight: $font-weight-semibold;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: darken($color-blue, 10%);
+    transform: translateY(-2px);
+  }
+
+  @include media-sm {
+    width: 100%;
   }
 }
-.empty {
-  color: #777;
+
+.task-list__section {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  animation: slideIn $transition-base ease-out;
+}
+
+.task-list__section-header {
+  @include flex-between;
+  gap: $spacing-md;
+  padding-bottom: $spacing-md;
+  border-bottom: 2px solid $color-gray-light;
+  margin-top: 60px;
+}
+
+.task-list__section-title {
+  font-family: $font-primary;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $color-dark;
+  margin: 0;
+}
+
+.task-list__section-count {
+  background-color: $color-blue-light;
+  color: $color-blue;
+  padding: $spacing-xs $spacing-md;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  min-width: 40px;
   text-align: center;
-  margin-top: 12px;
+}
+
+.task-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: $spacing-md;
+  margin-top: 20px;
+
+  @include media-md {
+    grid-template-columns: 1fr;
+  }
+}
+
+.task-list__empty {
+  @include flex-column-center;
+  gap: $spacing-md;
+  padding: $spacing-3xl $spacing-lg;
+  text-align: center;
+  background-color: $color-light-gray;
+  border-radius: $radius-lg;
+  border: 2px dashed $color-gray-light;
+  margin-top: 20px;
+}
+
+.task-list__empty-text {
+  font-family: $font-primary;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-dark;
+  margin: 0;
+}
+
+.task-list__empty-subtext {
+  font-size: $font-size-sm;
+  color: $color-gray-medium;
+  margin: 0;
+}
+
+.task-list__no-results {
+  @include flex-column-center;
+  gap: $spacing-md;
+  padding: $spacing-3xl $spacing-lg;
+  text-align: center;
+  background-color: $color-light-gray;
+  border-radius: $radius-lg;
+}
+
+.task-list__no-results-text {
+  font-family: $font-primary;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-gray-dark;
+  margin: 0;
+}
+
+.task-list__no-results-subtext {
+  font-size: $font-size-sm;
+  color: $color-gray-medium;
+  margin: 0;
+}
+
+@include media-md {
+  .task-list {
+    padding: $spacing-md;
+  }
+
+  .task-list__header {
+    flex-direction: column;
+    margin: -$spacing-md -$spacing-md 0;
+  }
+
+  .task-list__add-btn {
+    width: 100%;
+  }
 }
 </style>

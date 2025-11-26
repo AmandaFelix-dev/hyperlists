@@ -1,114 +1,212 @@
 <template>
   <div class="app">
-    <header class="header">
-      <h1>{{ title }}</h1>
-      <p class="subtitle">
-        Um aplicativo simples de tarefas — editar, deletar, salvar e adicionar
-        músicas do Spotify.
-      </p>
-    </header>
+    <sidebar
+      :selected-status="selectedStatus"
+      :selected-category="selectedCategory"
+      :categories="categories"
+      :total-count="totalTasks"
+      :pending-count="pendingCount"
+      :completed-count="completedCount"
+      :completion-rate="completionRate"
+      :tasks-by-category="tasksByCategory"
+      @update:selectedStatus="selectedStatus = $event"
+      @update:selectedCategory="selectedCategory = $event"
+      @new-task="openNewTaskForm"
+      @clear-completed="clearCompleted"
+    />
 
-    <main class="main">
-      <section class="new-task">
-        <input
-          v-model="newTitle"
-          placeholder="Título da tarefa"
-          @keyup.enter="addTask"
-        />
-        <input v-model="newSpotify" placeholder="Link do Spotify (opcional)" />
-        <textarea
-          v-model="newDesc"
-          placeholder="Descrição (opcional)"
-        ></textarea>
-        <div class="controls">
-          <button
-            class="secondary"
-            @click="addTask"
-            :disabled="!newTitle.trim()"
-          >
-            Adicionar
-          </button>
-          <button class="secondary" @click="clearInputs">Limpar</button>
-        </div>
-      </section>
-
-      <TaskList
-        :tasks="tasks"
-        @update="saveTasks"
-        @delete="deleteTask"
-        @edit="editTask"
+    <main class="app__main">
+      <task-list
+        :filtered-tasks="filteredTasks"
+        :pending-tasks="pendingTasks"
+        :completed-tasks="completedTasks"
+        :selected-status="selectedStatus"
+        :search-text="searchText"
+        @update:searchText="searchText = $event"
+        @new-task="openNewTaskForm"
+        @toggle-task="toggleTaskCompletion"
+        @edit-task="openEditTaskForm"
+        @delete-task="deleteTask"
       />
-
-      <footer class="footer">
-        <small
-          >{{ tasks.length }} tarefa(s) — salvo localmente no navegador</small
-        >
-      </footer>
     </main>
+
+    <task-form
+      :is-open="isFormOpen"
+      :is-editing="isEditing"
+      :editing-task="editingTask"
+      :categories="categories"
+      @submit="handleFormSubmit"
+      @close="closeForm"
+    />
   </div>
 </template>
 
-<script setup>
-import { ref, reactive, watch, onMounted } from "vue";
-import TaskList from "./components/TaskList.vue";
+<script>
+import { ref, computed, onMounted } from 'vue'
+import Sidebar from './components/Sidebar.vue'
+import TaskList from './components/TaskList.vue'
+import TaskForm from './components/TaskForm.vue'
+import { useTasks } from './utils/useTasks'
 
-const title = "hyper-list";
-const STORAGE_KEY = "hyper-list.tasks";
+export default {
+  name: 'App',
+  components: {
+    Sidebar,
+    TaskList,
+    TaskForm,
+  },
+  setup() {
+    // Usar composable de tarefas
+    const {
+      tasks,
+      categories,
+      selectedCategory,
+      selectedStatus,
+      searchText,
+      filteredTasks,
+      pendingTasks,
+      completedTasks,
+      totalTasks,
+      completionRate,
+      initializeTasks,
+      addTask,
+      updateTask,
+      deleteTask,
+      toggleTaskCompletion,
+      clearCompleted,
+    } = useTasks()
 
-const tasks = ref([]);
-const newTitle = ref("");
-const newDesc = ref("");
-const newSpotify = ref("");
+    // Estado do formulário
+    const isFormOpen = ref(false)
+    const isEditing = ref(false)
+    const editingTask = ref(null)
 
-function loadTasks() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) tasks.value = JSON.parse(raw);
-  } catch (e) {
-    console.warn("Erro ao carregar tarefas:", e);
-  }
+    // Computadas
+    const pendingCount = computed(() => pendingTasks.value.length)
+    const completedCount = computed(() => completedTasks.value.length)
+
+    const tasksByCategory = computed(() => {
+      const counts = {}
+      categories.value.forEach(cat => {
+        counts[cat] = tasks.value.filter(t => t.category === cat).length
+      })
+      return counts
+    })
+
+    // Métodos
+    const openNewTaskForm = () => {
+      isEditing.value = false
+      editingTask.value = null
+      isFormOpen.value = true
+    }
+
+    const openEditTaskForm = (task) => {
+      isEditing.value = true
+      editingTask.value = task
+      isFormOpen.value = true
+    }
+
+    const closeForm = () => {
+      isFormOpen.value = false
+      isEditing.value = false
+      editingTask.value = null
+    }
+
+    const handleFormSubmit = (formData) => {
+      if (isEditing.value && editingTask.value) {
+        const result = updateTask(editingTask.value.id, {
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          dueDate: formData.dueDate,
+        })
+        if (result.success) {
+          closeForm()
+        }
+      } else {
+        const result = addTask(formData)
+        if (result.success) {
+          closeForm()
+        }
+      }
+    }
+
+    const handleDeleteTask = (taskId) => {
+      if (confirm('Tem certeza que deseja deletar esta tarefa?')) {
+        deleteTask(taskId)
+      }
+    }
+
+    const handleToggleTask = (taskId) => {
+      toggleTaskCompletion(taskId)
+    }
+
+    const handleClearCompleted = () => {
+      if (confirm('Tem certeza que deseja deletar todas as tarefas concluídas?')) {
+        clearCompleted()
+      }
+    }
+
+    // Inicializar
+    onMounted(() => {
+      initializeTasks()
+    })
+
+    return {
+      tasks,
+      categories,
+      selectedCategory,
+      selectedStatus,
+      searchText,
+      filteredTasks,
+      pendingTasks,
+      completedTasks,
+      totalTasks,
+      completionRate,
+      pendingCount,
+      completedCount,
+      tasksByCategory,
+      isFormOpen,
+      isEditing,
+      editingTask,
+      openNewTaskForm,
+      openEditTaskForm,
+      closeForm,
+      handleFormSubmit,
+      deleteTask: handleDeleteTask,
+      toggleTaskCompletion: handleToggleTask,
+      clearCompleted: handleClearCompleted,
+    }
+  },
 }
-
-function saveTasks(updated) {
-  tasks.value = updated;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks.value));
-}
-
-function addTask() {
-  const t = newTitle.value.trim();
-  if (!t) return;
-  const task = {
-    id: Date.now().toString(),
-    title: t,
-    description: newDesc.value.trim(),
-    spotify: newSpotify.value.trim(),
-    createdAt: new Date().toISOString(),
-  };
-  tasks.value.unshift(task);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks.value));
-  newTitle.value = "";
-  newDesc.value = "";
-  newSpotify.value = "";
-}
-
-function clearInputs() {
-  newTitle.value = "";
-  newDesc.value = "";
-  newSpotify.value = "";
-}
-
-function deleteTask(id) {
-  const updated = tasks.value.filter((t) => t.id !== id);
-  saveTasks(updated);
-}
-
-function editTask(updatedTask) {
-  const idx = tasks.value.findIndex((t) => t.id === updatedTask.id);
-  if (idx !== -1) {
-    tasks.value.splice(idx, 1, updatedTask);
-    saveTasks(tasks.value);
-  }
-}
-
-onMounted(loadTasks);
 </script>
+
+<style scoped lang="scss">
+@import './styles/variables';
+@import './styles/mixins';
+
+.app {
+  display: flex;
+  height: 100vh;
+  background-color: $color-light-gray;
+  overflow: hidden;
+}
+
+.app__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: $color-light-gray;
+}
+
+@include media-md {
+  .app {
+    flex-direction: column;
+  }
+
+  .app__main {
+    flex: 1;
+  }
+}
+</style>
