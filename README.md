@@ -76,7 +76,7 @@ todo-app-vue3/
 
 ## 🎨 Design e Estilização
 
-### Paleta de Cores (Notion-inspired)
+### Paleta de Cores
 
 - **Branco**: `#ffffff`
 - **Cinza Claro**: `#f5f5f5`
@@ -97,13 +97,6 @@ todo-app-vue3/
 | Músicas | Vermelho `#e74c3c` |
 | Projetos | Amarelo `#f39c12` |
 | Anotações | Teal `#16a085` |
-
-### Tipografia
-
-- **Títulos**: Poppins (Bold, Semibold)
-- **Corpo**: Inter (Regular, Medium)
-
-## 🔧 Funcionalidades Detalhadas
 
 ### ➕ Criar Tarefa
 
@@ -164,51 +157,6 @@ Todas as tarefas são salvas automaticamente no `localStorage` do navegador. Iss
 - ✅ Os dados não são sincronizados entre dispositivos
 - ℹ️ Para exportar dados, você pode usar as funções em `utils/storage.js`
 
-## 🎯 Componentes Vue 3
-
-### App.vue
-Componente raiz que gerencia o estado global usando o composable `useTasks`.
-
-### Sidebar.vue
-Navegação lateral com:
-- Filtros por status
-- Filtros por categoria
-- Botão para nova tarefa
-- Estatísticas (total, progresso)
-- Modo colapsável
-
-### TaskList.vue
-Lista principal de tarefas com:
-- Busca em tempo real
-- Separação visual entre pendentes e concluídas
-- Grid responsivo
-- Estados vazios personalizados
-
-### TaskCard.vue
-Componente individual de tarefa com:
-- Checkbox para conclusão
-- Título e descrição
-- Badge de categoria
-- Data de vencimento
-- Botões de editar e deletar
-
-### TaskForm.vue
-Modal para criar/editar tarefas com:
-- Validação de campos
-- Seleção de categoria
-- Picker de data
-- Animações suaves
-
-## 🛠️ Composables
-
-### useTasks.js
-Composable Vue 3 que fornece:
-- Estado reativo de tarefas
-- Métodos CRUD (Create, Read, Update, Delete)
-- Filtros e buscas
-- Sincronização com localStorage
-- Cálculo de estatísticas
-
 ## 📱 Responsividade
 
 O projeto é totalmente responsivo com breakpoints:
@@ -216,13 +164,6 @@ O projeto é totalmente responsivo com breakpoints:
 - **Mobile**: < 640px
 - **Tablet**: 640px - 1024px
 - **Desktop**: > 1024px
-
-## 🎬 Animações
-
-- **Fade In**: Aparecimento suave de elementos
-- **Slide In**: Entrada com movimento
-- **Pulse**: Animação de pulso para elementos ativos
-- **Transições**: Hover effects em cards e botões
 
 ## 🔐 Validação
 
@@ -247,60 +188,8 @@ O projeto é totalmente responsivo com breakpoints:
 }
 ```
 
-## 🚀 Dicas de Desenvolvimento
-
-### Adicionar Nova Categoria
-
-Edite o arquivo `src/utils/useTasks.js` e adicione a categoria ao array padrão:
-
-```javascript
-const categories = ref(['Trabalho', 'Estudos', 'Pessoal', 'Músicas', 'Projetos', 'Anotações', 'Sua Nova Categoria'])
-```
-
-### Customizar Cores
-
-Edite `src/styles/_variables.scss` para mudar as cores:
-
-```scss
-$color-blue: #0066cc;  // Mude para sua cor
-$color-primary: #seu-codigo-hex;
-```
-
-### Adicionar Novos Filtros
-
-Use o composable `useTasks` para adicionar novos filtros em `App.vue`.
-
-## 🐛 Troubleshooting
-
-### Servidor não inicia
-```bash
-# Limpe o cache e reinstale
-rm -rf node_modules
-npm install
-npm run dev
-```
-
-### Estilos não aparecem
-```bash
-# Verifique se o SCSS está compilando
-npm run dev
-# Limpe o cache do navegador (Ctrl+Shift+Delete)
-```
-
-### Dados não persistem
-- Verifique se o localStorage está habilitado no navegador
-- Verifique o console do navegador para erros
-
-## 📄 Licença
-
-Este projeto é de código aberto e pode ser usado livremente.
-
-## 🤝 Contribuições
-
-Sinta-se livre para fazer fork, melhorar e enviar pull requests!
-
 ---
 
-**Desenvolvido com ❤️ usando Vue 3, Vite e SCSS**
+**Desenvolvido usando Vue 3, Vite e SCSS**
 
-Aproveite seu novo gerenciador de tarefas! 🚀
+Aproveite o gerenciador de tarefas! 🚀
